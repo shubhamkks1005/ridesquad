@@ -7,14 +7,9 @@ import ProtectedRoute from "./components/Shared/ProtectedRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import BookRide from "./pages/BookRide";
 
 // Placeholder pages (baad me banenge)
-const BookRide = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <h1 className="text-white text-3xl">Book Ride Page (Coming Soon)</h1>
-  </div>
-);
-
 const DriverDashboard = () => (
   <div className="min-h-screen bg-slate-900 flex items-center justify-center">
     <h1 className="text-white text-3xl">Driver Dashboard (Coming Soon)</h1>
