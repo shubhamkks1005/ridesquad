@@ -60,12 +60,16 @@ const driverIcons = {
 };
 
 // Smart zoom component
-const SmartZoom = ({ pickup, destination }) => {
+const SmartZoom = ({ pickup, destination, drivers, isTracking }) => {
   const map = useMap();
   const prevPickupRef = useRef(null);
   const prevDestRef = useRef(null);
+  const initialZoomDone = useRef(false);
 
+  // Pickup/Destination select hone pe zoom (BookRide page)
   useEffect(() => {
+    if (isTracking) return;
+
     const pickupChanged =
       pickup &&
       (!prevPickupRef.current ||
@@ -80,7 +84,6 @@ const SmartZoom = ({ pickup, destination }) => {
 
     if (pickupChanged || destChanged) {
       if (pickup && destination) {
-        // Dono points select — dono dikhao with padding
         const bounds = L.latLngBounds(
           [pickup.lat, pickup.lng],
           [destination.lat, destination.lng]
@@ -92,13 +95,11 @@ const SmartZoom = ({ pickup, destination }) => {
           duration: 0.5,
         });
       } else if (pickup && !destination) {
-        // Sirf pickup — zoom in karo close view ke liye
         map.flyTo([pickup.lat, pickup.lng], 16, {
           animate: true,
           duration: 1,
         });
       } else if (destination && !pickup) {
-        // Sirf destination
         map.flyTo([destination.lat, destination.lng], 16, {
           animate: true,
           duration: 1,
@@ -108,15 +109,54 @@ const SmartZoom = ({ pickup, destination }) => {
       prevPickupRef.current = pickup;
       prevDestRef.current = destination;
     }
-  }, [pickup, destination, map]);
+  }, [pickup, destination, map, isTracking]);
+
+  // TrackRide page pe — driver aur pickup ke beech zoom karo
+  useEffect(() => {
+    if (!isTracking || !pickup) return;
+
+    // Assigned driver dhundho
+    const assignedDriver = drivers.find((d) => d.assigned);
+
+    if (assignedDriver) {
+      const bounds = L.latLngBounds(
+        [pickup.lat, pickup.lng],
+        [assignedDriver.lat, assignedDriver.lng]
+      );
+      map.fitBounds(bounds, {
+        padding: [80, 80],
+        maxZoom: 17,
+        animate: true,
+        duration: 0.5,
+      });
+    } else if (!initialZoomDone.current) {
+      // Pehli baar — pickup aur destination dikhao
+      if (pickup && destination) {
+        const bounds = L.latLngBounds(
+          [pickup.lat, pickup.lng],
+          [destination.lat, destination.lng]
+        );
+        map.fitBounds(bounds, {
+          padding: [80, 80],
+          maxZoom: 15,
+          animate: true,
+          duration: 0.5,
+        });
+      } else if (pickup) {
+        map.flyTo([pickup.lat, pickup.lng], 15, {
+          animate: true,
+          duration: 1,
+        });
+      }
+      initialZoomDone.current = true;
+    }
+  }, [drivers, pickup, destination, map, isTracking]);
 
   return null;
 };
 
-const MapView = ({ pickup, destination, drivers = [] }) => {
-  const center = pickup
-    ? [pickup.lat, pickup.lng]
-    : [26.8467, 80.9462];
+const MapView = ({ pickup, destination, drivers = [], isTracking = false }) => {
+  const center = pickup ? [pickup.lat, pickup.lng] : [26.8467, 80.9462];
 
   const mapTilerKey = import.meta.env.VITE_MAPTILER_KEY;
 
@@ -131,7 +171,12 @@ const MapView = ({ pickup, destination, drivers = [] }) => {
         url={`https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${mapTilerKey}`}
       />
 
-      <SmartZoom pickup={pickup} destination={destination} />
+      <SmartZoom
+        pickup={pickup}
+        destination={destination}
+        drivers={drivers}
+        isTracking={isTracking}
+      />
 
       {/* Pickup Marker */}
       {pickup && (

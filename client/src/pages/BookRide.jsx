@@ -21,16 +21,14 @@ const BookRide = () => {
   const { connectSocket, disconnectSocket, drivers, socket } =
     useSocketStore();
 
-  // Socket connect on mount
   useEffect(() => {
     connectSocket();
-
     return () => {
       disconnectSocket();
     };
   }, []);
 
-  // Jab pickup select ho — drivers ko pickup ke paas laao
+  // Sirf drivers dikhane ke liye respawn (booking ke liye nahi)
   useEffect(() => {
     if (pickup && socket) {
       socket.emit("ride:respawn-drivers", { pickup });
@@ -40,7 +38,6 @@ const BookRide = () => {
     }
   }, [pickup, socket]);
 
-  // Distance calculate
   useEffect(() => {
     if (pickup && destination) {
       const calculatedDistance = haversine(
@@ -84,17 +81,10 @@ const BookRide = () => {
 
       const { data } = await api.post("/api/ride/book", payload);
 
-      if (socket) {
-        socket.emit("ride:book", {
-          rideId: data.ride._id,
-          pickup,
-          destination,
-          vehicleType: selectedVehicle,
-        });
-      }
+      toast.success("Ride booked! Finding driver...");
 
-      toast.success("Ride booked! Driver aa raha hai...");
-      navigate("/history");
+      // Sirf redirect karo — socket events TrackRide me honge
+      navigate(`/track/${data.ride._id}`);
     } catch (error) {
       console.error("Ride booking error:", error);
       toast.error(error.response?.data?.message || "Ride booking failed");
@@ -111,7 +101,6 @@ const BookRide = () => {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Side */}
           <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
             <div className="space-y-4">
               <LocationSearch label="Pickup Location" onSelect={setPickup} />
@@ -164,7 +153,6 @@ const BookRide = () => {
             )}
           </div>
 
-          {/* Right Side */}
           <div className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
             <MapView
               pickup={pickup}

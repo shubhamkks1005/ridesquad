@@ -7,6 +7,7 @@ export const useSocketStore = create((set, get) => ({
   socket: null,
   drivers: [],
   assignedDriver: null,
+  driverReached: false,
   connected: false,
 
   connectSocket: () => {
@@ -32,8 +33,13 @@ export const useSocketStore = create((set, get) => ({
     });
 
     socket.on("ride:driver-assigned", (data) => {
-      set({ assignedDriver: data.driver });
+      set({ assignedDriver: data.driver, driverReached: false });
       console.log("🚗 Driver assigned:", data.driver);
+    });
+
+    socket.on("driver:reached", (data) => {
+      set({ driverReached: true });
+      console.log("✅ Driver reached pickup:", data.driverId);
     });
 
     set({ socket });
@@ -49,6 +55,7 @@ export const useSocketStore = create((set, get) => ({
       socket: null,
       drivers: [],
       assignedDriver: null,
+      driverReached: false,
       connected: false,
     });
   },

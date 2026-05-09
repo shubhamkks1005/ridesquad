@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import BookRide from "./pages/BookRide";
 import RideHistory from "./pages/RideHistory";
+import TrackRide from "./pages/TrackRide";
 
 // Placeholder pages (baad me banenge)
 const DriverDashboard = () => (
@@ -40,6 +41,14 @@ function App() {
           element={
             <ProtectedRoute>
               <BookRide />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/track/:id"
+          element={
+            <ProtectedRoute>
+              <TrackRide />
             </ProtectedRoute>
           }
         />
