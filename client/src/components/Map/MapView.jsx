@@ -37,6 +37,17 @@ const destinationIcon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
+// Blue icon for stops
+const stopIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+});
+
 // Driver icons
 const driverIcons = {
   bike: new L.DivIcon({
@@ -60,16 +71,48 @@ const driverIcons = {
 };
 
 // Smart zoom component
-const SmartZoom = ({ pickup, destination, drivers, isTracking }) => {
+const SmartZoom = ({ pickup, destination, stops = [], drivers, isTracking }) => {
   const map = useMap();
   const prevPickupRef = useRef(null);
   const prevDestRef = useRef(null);
+  const prevStopsRef = useRef([]);
   const initialZoomDone = useRef(false);
 
-  // Pickup/Destination select hone pe zoom (BookRide page)
   useEffect(() => {
-    if (isTracking) return;
+    if (isTracking) {
+      // TrackRide page — driver aur pickup ke beech zoom
+      const assignedDriver = drivers.find((d) => d.assigned);
 
+      if (assignedDriver && pickup) {
+        const bounds = L.latLngBounds(
+          [pickup.lat, pickup.lng],
+          [assignedDriver.lat, assignedDriver.lng]
+        );
+        map.fitBounds(bounds, {
+          padding: [80, 80],
+          maxZoom: 17,
+          animate: true,
+          duration: 0.5,
+        });
+      } else if (!initialZoomDone.current) {
+        if (pickup && destination) {
+          const allPoints = [pickup, ...stops, destination];
+          const bounds = L.latLngBounds(
+            allPoints.map((p) => [p.lat, p.lng])
+          );
+          map.fitBounds(bounds, {
+            padding: [80, 80],
+            maxZoom: 15,
+            animate: true,
+            duration: 0.5,
+          });
+        }
+        initialZoomDone.current = true;
+      }
+      return;
+    }
+
+    // BookRide page — pickup/destination/stops change pe zoom
     const pickupChanged =
       pickup &&
       (!prevPickupRef.current ||
@@ -82,11 +125,14 @@ const SmartZoom = ({ pickup, destination, drivers, isTracking }) => {
         prevDestRef.current.lat !== destination.lat ||
         prevDestRef.current.lng !== destination.lng);
 
-    if (pickupChanged || destChanged) {
-      if (pickup && destination) {
+    const stopsChanged = stops.length !== prevStopsRef.current.length;
+
+    if (pickupChanged || destChanged || stopsChanged) {
+      const allPoints = [pickup, ...stops, destination].filter(Boolean);
+
+      if (allPoints.length >= 2) {
         const bounds = L.latLngBounds(
-          [pickup.lat, pickup.lng],
-          [destination.lat, destination.lng]
+          allPoints.map((p) => [p.lat, p.lng])
         );
         map.fitBounds(bounds, {
           padding: [80, 80],
@@ -94,13 +140,8 @@ const SmartZoom = ({ pickup, destination, drivers, isTracking }) => {
           animate: true,
           duration: 0.5,
         });
-      } else if (pickup && !destination) {
-        map.flyTo([pickup.lat, pickup.lng], 16, {
-          animate: true,
-          duration: 1,
-        });
-      } else if (destination && !pickup) {
-        map.flyTo([destination.lat, destination.lng], 16, {
+      } else if (allPoints.length === 1) {
+        map.flyTo([allPoints[0].lat, allPoints[0].lng], 16, {
           animate: true,
           duration: 1,
         });
@@ -108,54 +149,20 @@ const SmartZoom = ({ pickup, destination, drivers, isTracking }) => {
 
       prevPickupRef.current = pickup;
       prevDestRef.current = destination;
+      prevStopsRef.current = stops;
     }
-  }, [pickup, destination, map, isTracking]);
-
-  // TrackRide page pe — driver aur pickup ke beech zoom karo
-  useEffect(() => {
-    if (!isTracking || !pickup) return;
-
-    // Assigned driver dhundho
-    const assignedDriver = drivers.find((d) => d.assigned);
-
-    if (assignedDriver) {
-      const bounds = L.latLngBounds(
-        [pickup.lat, pickup.lng],
-        [assignedDriver.lat, assignedDriver.lng]
-      );
-      map.fitBounds(bounds, {
-        padding: [80, 80],
-        maxZoom: 17,
-        animate: true,
-        duration: 0.5,
-      });
-    } else if (!initialZoomDone.current) {
-      // Pehli baar — pickup aur destination dikhao
-      if (pickup && destination) {
-        const bounds = L.latLngBounds(
-          [pickup.lat, pickup.lng],
-          [destination.lat, destination.lng]
-        );
-        map.fitBounds(bounds, {
-          padding: [80, 80],
-          maxZoom: 15,
-          animate: true,
-          duration: 0.5,
-        });
-      } else if (pickup) {
-        map.flyTo([pickup.lat, pickup.lng], 15, {
-          animate: true,
-          duration: 1,
-        });
-      }
-      initialZoomDone.current = true;
-    }
-  }, [drivers, pickup, destination, map, isTracking]);
+  }, [pickup, destination, stops, drivers, map, isTracking]);
 
   return null;
 };
 
-const MapView = ({ pickup, destination, drivers = [], isTracking = false }) => {
+const MapView = ({
+  pickup,
+  destination,
+  stops = [],
+  drivers = [],
+  isTracking = false,
+}) => {
   const center = pickup ? [pickup.lat, pickup.lng] : [26.8467, 80.9462];
 
   const mapTilerKey = import.meta.env.VITE_MAPTILER_KEY;
@@ -174,6 +181,7 @@ const MapView = ({ pickup, destination, drivers = [], isTracking = false }) => {
       <SmartZoom
         pickup={pickup}
         destination={destination}
+        stops={stops}
         drivers={drivers}
         isTracking={isTracking}
       />
@@ -191,6 +199,23 @@ const MapView = ({ pickup, destination, drivers = [], isTracking = false }) => {
         </Marker>
       )}
 
+      {/* Stop Markers */}
+      {stops.map((stop, idx) => (
+        <Marker
+          key={`stop-${idx}`}
+          position={[stop.lat, stop.lng]}
+          icon={stopIcon}
+        >
+          <Popup>
+            <div className="text-sm">
+              <strong>🔵 Stop {idx + 1}</strong>
+              <br />
+              {stop.name}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+
       {/* Destination Marker */}
       {destination && (
         <Marker
@@ -207,8 +232,12 @@ const MapView = ({ pickup, destination, drivers = [], isTracking = false }) => {
         </Marker>
       )}
 
-      {/* Route Line */}
-      <RoutePolyline pickup={pickup} destination={destination} />
+      {/* Route Line — pickup → stops → destination */}
+      <RoutePolyline
+        pickup={pickup}
+        destination={destination}
+        stops={stops}
+      />
 
       {/* Live Drivers */}
       {drivers.map((driver) => (
