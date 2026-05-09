@@ -6,8 +6,12 @@ const LocationSearch = ({ label, onSelect }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showRecent, setShowRecent] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
   const selectedRef = useRef(false);
   const inputRef = useRef(null);
+
+  const isPickupField = label.toLowerCase().includes("pickup");
 
   // LocalStorage se recent locations lao
   const getRecentLocations = () => {
@@ -19,20 +23,92 @@ const LocationSearch = ({ label, onSelect }) => {
   const saveRecentLocation = (location) => {
     let recent = getRecentLocations();
 
-    // Duplicate hatao (same name wale)
-    recent = recent.filter(
-      (loc) => loc.name !== location.name
-    );
+    // Duplicate hatao
+    recent = recent.filter((loc) => loc.name !== location.name);
 
-    // Naya location sabse upar daalo
+    // Naya location top pe
     recent.unshift(location);
 
-    // Maximum 5 recent locations rakho
+    // Max 5 recent locations
     if (recent.length > 5) {
       recent = recent.slice(0, 5);
     }
 
     localStorage.setItem("recentLocations", JSON.stringify(recent));
+  };
+
+  // GPS se current location detect karo
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Tumhara browser location support nahi karta.");
+      return;
+    }
+
+    setGpsLoading(true);
+    setShowRecent(false);
+    setShowDropdown(false);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        try {
+          const key = import.meta.env.VITE_GEOAPIFY_KEY;
+          const res = await fetch(
+            `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${key}&lang=en`
+          );
+          const data = await res.json();
+
+          let name = "Current Location";
+
+          if (data.features && data.features.length > 0) {
+            name = data.features[0].properties.formatted || "Current Location";
+          }
+
+          const location = { name, lat, lng };
+
+          selectedRef.current = true;
+          setQuery(name);
+          saveRecentLocation(location);
+          onSelect(location);
+        } catch (error) {
+          console.error("Reverse geocoding error:", error);
+
+          const location = {
+            name: "Current Location",
+            lat,
+            lng,
+          };
+
+          selectedRef.current = true;
+          setQuery("Current Location");
+          saveRecentLocation(location);
+          onSelect(location);
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      (error) => {
+        console.error("GPS error:", error);
+        setGpsLoading(false);
+
+        if (error.code === 1) {
+          alert("Location permission deny ho gayi. Browser settings me allow karo.");
+        } else if (error.code === 2) {
+          alert("Location unavailable hai. Windows/browser location on karke dobara try karo.");
+        } else if (error.code === 3) {
+          alert("Location request timeout ho gayi. Dobara try karo.");
+        } else {
+          alert("Location detect nahi ho payi. Search use karo.");
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 60000,
+      }
+    );
   };
 
   // Search API call
@@ -52,6 +128,7 @@ const LocationSearch = ({ label, onSelect }) => {
 
     const timer = setTimeout(async () => {
       setLoading(true);
+
       try {
         const key = import.meta.env.VITE_GEOAPIFY_KEY;
         const res = await fetch(
@@ -72,7 +149,7 @@ const LocationSearch = ({ label, onSelect }) => {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // API result select karne pe
+  // API result select
   const handleSelect = (place) => {
     const name = place.properties.formatted || place.properties.name;
     const lat = place.geometry.coordinates[1];
@@ -90,7 +167,7 @@ const LocationSearch = ({ label, onSelect }) => {
     onSelect(location);
   };
 
-  // Recent location select karne pe
+  // Recent result select
   const handleRecentSelect = (location) => {
     selectedRef.current = true;
     setQuery(location.name);
@@ -102,7 +179,7 @@ const LocationSearch = ({ label, onSelect }) => {
     onSelect(location);
   };
 
-  // Input pe focus karne pe recent dikhao
+  // Input focus pe recent dikhao
   const handleFocus = () => {
     if (query.length < 3) {
       const recent = getRecentLocations();
@@ -113,7 +190,7 @@ const LocationSearch = ({ label, onSelect }) => {
     }
   };
 
-  // Bahar click karne pe dropdown band karo
+  // Outside click pe dropdown band
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (inputRef.current && !inputRef.current.contains(e.target)) {
@@ -139,7 +216,9 @@ const LocationSearch = ({ label, onSelect }) => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={handleFocus}
           placeholder={`Search ${label}...`}
-          className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-blue-400"
+          className={`w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-blue-400 ${
+            isPickupField ? "pr-28" : ""
+          }`}
         />
 
         {loading && (
@@ -147,9 +226,20 @@ const LocationSearch = ({ label, onSelect }) => {
             Searching...
           </div>
         )}
+
+        {isPickupField && !loading && (
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            disabled={gpsLoading}
+            className="absolute right-2 top-1.5 bg-blue-500/30 hover:bg-blue-500/50 text-blue-300 text-xs px-3 py-1.5 rounded-md transition disabled:opacity-50"
+          >
+            {gpsLoading ? "Detecting..." : "📍 GPS"}
+          </button>
+        )}
       </div>
 
-      {/* Recent Locations Dropdown */}
+      {/* Recent Locations */}
       {showRecent && recentLocations.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg max-h-60 overflow-y-auto shadow-xl">
           <li className="px-4 py-2 text-xs text-gray-400 border-b border-white/10">
@@ -168,7 +258,7 @@ const LocationSearch = ({ label, onSelect }) => {
         </ul>
       )}
 
-      {/* Search Results Dropdown */}
+      {/* Search Results */}
       {showDropdown && results.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-slate-800 border border-white/20 rounded-lg max-h-60 overflow-y-auto shadow-xl">
           {results.map((place, idx) => (
