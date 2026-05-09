@@ -127,8 +127,8 @@ socket.on("ride:respawn-drivers", (data) => {
 
   drivers.forEach((driver) => {
     if (!driver.assigned) {
-      driver.lat = centerLat + (Math.random() - 0.5) * 0.04;
-      driver.lng = centerLng + (Math.random() - 0.5) * 0.04;
+      driver.lat = centerLat + (Math.random() - 0.5) * 0.03;
+      driver.lng = centerLng + (Math.random() - 0.5) * 0.03;
       driver.routePath = [];
       driver.routeIndex = 0;
       driver.reached = false;
@@ -145,7 +145,7 @@ setInterval(() => {
 
     if (driver.assigned && driver.routePath.length > 0) {
       // Smooth interpolation between route points
-      driver.tweenProgress += 0.25; // 4 steps per route point
+      driver.tweenProgress += 0.125; // 4 steps per route point
 
       if (driver.tweenProgress >= 1) {
         // Next route point pe jao
@@ -212,7 +212,7 @@ setInterval(() => {
   });
 
   socket.emit("drivers:update", drivers);
-}, 200);
+}, 100);
 
 socket.on("disconnect", () => {
   console.log("❌ Simulator disconnected");

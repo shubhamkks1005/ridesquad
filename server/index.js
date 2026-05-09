@@ -7,6 +7,8 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
 const rideRoutes = require("./routes/ride");
+const driverRoutes = require("./routes/driver");
+const adminRoutes = require("./routes/admin");
 const socketHandler = require("./socket/socketHandler");
 
 const app = express();
@@ -33,6 +35,8 @@ app.use(express.json());
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/ride", rideRoutes);
+app.use("/api/driver", driverRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
@@ -49,7 +53,7 @@ mongoose
     console.error("❌ MongoDB Error:", err);
   });
 
-// Start Server (app.listen nahi, server.listen use karo Socket.io ke liye)
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

@@ -10,19 +10,8 @@ import Register from "./pages/Register";
 import BookRide from "./pages/BookRide";
 import RideHistory from "./pages/RideHistory";
 import TrackRide from "./pages/TrackRide";
-
-// Placeholder pages (baad me banenge)
-const DriverDashboard = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <h1 className="text-white text-3xl">Driver Dashboard (Coming Soon)</h1>
-  </div>
-);
-
-const AdminDashboard = () => (
-  <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-    <h1 className="text-white text-3xl">Admin Dashboard (Coming Soon)</h1>
-  </div>
-);
+import DriverDashboard from "./pages/DriverDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
 function App() {
   return (
