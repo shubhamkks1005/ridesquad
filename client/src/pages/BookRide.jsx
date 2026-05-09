@@ -6,6 +6,7 @@ import LocationSearch from "../components/Map/LocationSearch";
 import FareCard from "../components/Ride/FareCard";
 import haversine from "../utils/haversine";
 import api from "../utils/axios";
+import { useSocketStore } from "../store/socketStore";
 
 const BookRide = () => {
   const navigate = useNavigate();
@@ -15,7 +16,31 @@ const BookRide = () => {
   const [distance, setDistance] = useState(0);
   const [selectedVehicle, setSelectedVehicle] = useState("bike");
   const [booking, setBooking] = useState(false);
+  const [showDrivers, setShowDrivers] = useState(false);
 
+  const { connectSocket, disconnectSocket, drivers, socket } =
+    useSocketStore();
+
+  // Socket connect on mount
+  useEffect(() => {
+    connectSocket();
+
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
+  // Jab pickup select ho — drivers ko pickup ke paas laao
+  useEffect(() => {
+    if (pickup && socket) {
+      socket.emit("ride:respawn-drivers", { pickup });
+      setShowDrivers(true);
+    } else {
+      setShowDrivers(false);
+    }
+  }, [pickup, socket]);
+
+  // Distance calculate
   useEffect(() => {
     if (pickup && destination) {
       const calculatedDistance = haversine(
@@ -57,9 +82,18 @@ const BookRide = () => {
         distance,
       };
 
-      await api.post("/api/ride/book", payload);
+      const { data } = await api.post("/api/ride/book", payload);
 
-      toast.success("Ride booked successfully!");
+      if (socket) {
+        socket.emit("ride:book", {
+          rideId: data.ride._id,
+          pickup,
+          destination,
+          vehicleType: selectedVehicle,
+        });
+      }
+
+      toast.success("Ride booked! Driver aa raha hai...");
       navigate("/history");
     } catch (error) {
       console.error("Ride booking error:", error);
@@ -77,6 +111,7 @@ const BookRide = () => {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Side */}
           <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
             <div className="space-y-4">
               <LocationSearch label="Pickup Location" onSelect={setPickup} />
@@ -129,8 +164,19 @@ const BookRide = () => {
             )}
           </div>
 
+          {/* Right Side */}
           <div className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
-            <MapView pickup={pickup} destination={destination} />
+            <MapView
+              pickup={pickup}
+              destination={destination}
+              drivers={showDrivers ? drivers : []}
+            />
+
+            {showDrivers && (
+              <div className="mt-3 text-center text-sm text-gray-400">
+                🟢 {drivers.filter((d) => !d.assigned).length} drivers nearby
+              </div>
+            )}
           </div>
         </div>
       </div>
