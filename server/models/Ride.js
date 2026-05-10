@@ -43,6 +43,7 @@ const fareBreakdownSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    label: String,
     amount: Number,
   },
   { _id: false }
@@ -95,7 +96,14 @@ const rideSchema = new mongoose.Schema({
   stops: [stopSchema],
   status: {
     type: String,
-    enum: ["pending", "accepted", "ongoing", "completed", "cancelled"],
+    enum: [
+      "pending",
+      "accepted",
+      "driver_arrived",
+      "ongoing",
+      "completed",
+      "cancelled",
+    ],
     default: "pending",
   },
   isSocialRide: {
@@ -111,6 +119,10 @@ const rideSchema = new mongoose.Schema({
   distance: {
     type: Number,
     required: true,
+  },
+  otp: {
+    type: String,
+    default: null,
   },
   createdAt: {
     type: Date,

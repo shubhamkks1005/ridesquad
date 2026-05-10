@@ -10,44 +10,62 @@ const createDrivers = (lat, lng) => {
     {
       id: "D1", name: "Raju", vehicle: "bike",
       lat: lat + 0.015, lng: lng + 0.012,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
     {
       id: "D2", name: "Suresh", vehicle: "auto",
       lat: lat - 0.012, lng: lng + 0.018,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
     {
       id: "D3", name: "Amit", vehicle: "cab",
       lat: lat + 0.010, lng: lng - 0.015,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
     {
       id: "D4", name: "Vikram", vehicle: "bike",
       lat: lat - 0.018, lng: lng - 0.010,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
     {
       id: "D5", name: "Deepak", vehicle: "auto",
       lat: lat + 0.020, lng: lng + 0.008,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
     {
       id: "D6", name: "Rahul", vehicle: "cab",
       lat: lat - 0.008, lng: lng + 0.020,
-      assigned: false, rideId: null, targetLat: null, targetLng: null,
-      routePath: [], routeIndex: 0, reached: false,
-      currentLat: 0, currentLng: 0, nextLat: 0, nextLng: 0, tweenProgress: 0,
+      status: "idle", rideId: null,
+      targetLat: null, targetLng: null,
+      routePath: [], routeIndex: 0,
+      currentLat: 0, currentLng: 0,
+      nextLat: 0, nextLng: 0, tweenProgress: 0,
+      assigned: false,
     },
   ];
 };
@@ -74,97 +92,151 @@ async function fetchRoute(fromLat, fromLng, toLat, toLng) {
   return [];
 }
 
+// Route start karne ka helper
+async function startRouteForDriver(driver, targetLat, targetLng) {
+  const route = await fetchRoute(driver.lat, driver.lng, targetLat, targetLng);
+
+  driver.targetLat = targetLat;
+  driver.targetLng = targetLng;
+
+  if (route.length > 0) {
+    driver.routePath = route;
+    driver.routeIndex = 0;
+    driver.currentLat = driver.lat;
+    driver.currentLng = driver.lng;
+    driver.nextLat = route[0].lat;
+    driver.nextLng = route[0].lng;
+    driver.tweenProgress = 0;
+    console.log(`🛣️ Driver ${driver.id} got route with ${route.length} points (${driver.status})`);
+  } else {
+    driver.routePath = [];
+    console.log(`⚠️ No route found for ${driver.id}, using direct path`);
+  }
+}
+
 socket.on("connect", () => {
   console.log("✅ Simulator connected to server");
   console.log("🚗 6 fake drivers are now moving...");
 });
 
-// Driver assigned
+// Driver assigned — pickup ki taraf move karo
 socket.on("ride:driver-assigned", async (data) => {
-  const { driver } = data;
-  console.log(`📍 Driver ${driver.id} assigned — fetching road route`);
+  const { driver: assignedDriver } = data;
+  console.log(`📍 Driver ${assignedDriver.id} assigned — moving to pickup`);
 
-  const idx = drivers.findIndex((d) => d.id === driver.id);
+  const idx = drivers.findIndex((d) => d.id === assignedDriver.id);
   if (idx !== -1) {
     drivers[idx].assigned = true;
-    drivers[idx].targetLat = driver.targetLat;
-    drivers[idx].targetLng = driver.targetLng;
-    drivers[idx].rideId = driver.rideId;
-    drivers[idx].reached = false;
+    drivers[idx].rideId = data.rideId;
+    drivers[idx].status = "going-to-pickup";
 
-    const route = await fetchRoute(
-      drivers[idx].lat,
-      drivers[idx].lng,
-      driver.targetLat,
-      driver.targetLng
+    await startRouteForDriver(
+      drivers[idx],
+      assignedDriver.targetLat,
+      assignedDriver.targetLng
     );
-
-    if (route.length > 0) {
-      drivers[idx].routePath = route;
-      drivers[idx].routeIndex = 0;
-      drivers[idx].currentLat = drivers[idx].lat;
-      drivers[idx].currentLng = drivers[idx].lng;
-      drivers[idx].nextLat = route[0].lat;
-      drivers[idx].nextLng = route[0].lng;
-      drivers[idx].tweenProgress = 0;
-      console.log(
-        `🛣️ Driver ${driver.id} got road route with ${route.length} points`
-      );
-    }
   }
 });
 
-// Respawn drivers
+// Destination ki taraf move karo
+socket.on("simulator:move-to-destination", async (data) => {
+  const idx = drivers.findIndex((d) => d.id === data.driverId);
+  if (idx !== -1) {
+    drivers[idx].status = "going-to-destination";
+
+    console.log(`🛣️ Driver ${data.driverId} now moving to destination`);
+
+    await startRouteForDriver(
+      drivers[idx],
+      data.destinationLat,
+      data.destinationLng
+    );
+  }
+});
+
+// Driver reset karo (idle pe wapas)
+socket.on("simulator:reset-driver", (data) => {
+  const idx = drivers.findIndex((d) => d.id === data.driverId);
+  if (idx !== -1) {
+    drivers[idx].status = "idle";
+    drivers[idx].assigned = false;
+    drivers[idx].rideId = null;
+    drivers[idx].targetLat = null;
+    drivers[idx].targetLng = null;
+    drivers[idx].routePath = [];
+    drivers[idx].routeIndex = 0;
+    drivers[idx].tweenProgress = 0;
+
+    console.log(`🔄 Driver ${data.driverId} reset to idle`);
+  }
+});
+
+// Respawn drivers pickup ke paas
 socket.on("ride:respawn-drivers", (data) => {
   const { pickup } = data;
 
-  console.log(
-    `📍 Respawning drivers near pickup: ${pickup.lat}, ${pickup.lng}`
-  );
+  console.log(`📍 Respawning drivers near pickup: ${pickup.lat}, ${pickup.lng}`);
 
   centerLat = pickup.lat;
   centerLng = pickup.lng;
 
   drivers.forEach((driver) => {
-    if (!driver.assigned) {
-      driver.lat = centerLat + (Math.random() - 0.5) * 0.03;
-      driver.lng = centerLng + (Math.random() - 0.5) * 0.03;
+    if (driver.status === "idle" && !driver.assigned) {
+      driver.lat = centerLat + (Math.random() - 0.5) * 0.04;
+      driver.lng = centerLng + (Math.random() - 0.5) * 0.04;
       driver.routePath = [];
       driver.routeIndex = 0;
-      driver.reached = false;
     }
   });
 
   socket.emit("drivers:update", drivers);
 });
 
-// Smooth movement — har 200ms me update
+// Smooth movement — har 100ms
 setInterval(() => {
   drivers.forEach((driver) => {
-    if (driver.reached) return;
+    // IDLE — random ghoomna
+    if (driver.status === "idle" && !driver.assigned) {
+      driver.lat += (Math.random() - 0.5) * 0.0002;
+      driver.lng += (Math.random() - 0.5) * 0.0002;
+      return;
+    }
 
-    if (driver.assigned && driver.routePath.length > 0) {
-      // Smooth interpolation between route points
-      driver.tweenProgress += 0.125; // 4 steps per route point
+    // GOING TO PICKUP ya DESTINATION — route follow karo
+    if (
+      (driver.status === "going-to-pickup" || driver.status === "going-to-destination") &&
+      driver.routePath.length > 0
+    ) {
+      driver.tweenProgress += 0.125;
 
       if (driver.tweenProgress >= 1) {
-        // Next route point pe jao
         driver.tweenProgress = 0;
         driver.routeIndex += 1;
 
         if (driver.routeIndex >= driver.routePath.length - 1) {
-          // Reached pickup
+          // Target pe pahunch gaya
           driver.lat = driver.targetLat;
           driver.lng = driver.targetLng;
-          driver.reached = true;
           driver.routePath = [];
           driver.routeIndex = 0;
-          console.log(`✅ Driver ${driver.id} reached pickup via road!`);
 
-          socket.emit("driver:reached", {
-            driverId: driver.id,
-            rideId: driver.rideId,
-          });
+          if (driver.status === "going-to-pickup") {
+            driver.status = "at-pickup";
+            console.log(`✅ Driver ${driver.id} reached pickup!`);
+
+            socket.emit("driver:reached", {
+              driverId: driver.id,
+              rideId: driver.rideId,
+            });
+          } else if (driver.status === "going-to-destination") {
+            driver.status = "at-destination";
+            console.log(`✅ Driver ${driver.id} reached destination!`);
+
+            socket.emit("driver:reached-destination", {
+              driverId: driver.id,
+              rideId: driver.rideId,
+            });
+          }
           return;
         }
 
@@ -174,18 +246,19 @@ setInterval(() => {
         driver.nextLng = driver.routePath[driver.routeIndex + 1].lng;
       }
 
-      // Interpolate position
+      // Interpolate
       const t = driver.tweenProgress;
       driver.lat = driver.currentLat + (driver.nextLat - driver.currentLat) * t;
       driver.lng = driver.currentLng + (driver.nextLng - driver.currentLng) * t;
+    }
 
-    } else if (
-      driver.assigned &&
+    // Fallback direct movement (agar route nahi mila)
+    if (
+      (driver.status === "going-to-pickup" || driver.status === "going-to-destination") &&
+      driver.routePath.length === 0 &&
       driver.targetLat &&
-      driver.targetLng &&
-      !driver.reached
+      driver.targetLng
     ) {
-      // Fallback smooth direct
       const speed = 0.0004;
       const dLat = driver.targetLat - driver.lat;
       const dLng = driver.targetLng - driver.lng;
@@ -194,20 +267,24 @@ setInterval(() => {
       if (dist < 0.0003) {
         driver.lat = driver.targetLat;
         driver.lng = driver.targetLng;
-        driver.reached = true;
 
-        socket.emit("driver:reached", {
-          driverId: driver.id,
-          rideId: driver.rideId,
-        });
+        if (driver.status === "going-to-pickup") {
+          driver.status = "at-pickup";
+          socket.emit("driver:reached", {
+            driverId: driver.id,
+            rideId: driver.rideId,
+          });
+        } else {
+          driver.status = "at-destination";
+          socket.emit("driver:reached-destination", {
+            driverId: driver.id,
+            rideId: driver.rideId,
+          });
+        }
       } else {
         driver.lat += (dLat / dist) * speed;
         driver.lng += (dLng / dist) * speed;
       }
-    } else if (!driver.assigned) {
-      // Free drivers random move
-      driver.lat += (Math.random() - 0.5) * 0.0002;
-      driver.lng += (Math.random() - 0.5) * 0.0002;
     }
   });
 

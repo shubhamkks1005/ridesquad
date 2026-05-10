@@ -163,6 +163,24 @@ const socketHandler = (io) => {
       io.emit("driver:reached", data);
     });
 
+        // Simulator ko destination pe bhejo
+    socket.on("ride:start-to-destination", (data) => {
+      console.log(`🛣️ Driver ${data.driverId} moving to destination for ride ${data.rideId}`);
+      io.emit("simulator:move-to-destination", data);
+    });
+
+    // Simulator ko reset karo
+    socket.on("simulator:reset-driver", (data) => {
+      console.log(`🔄 Resetting driver ${data.driverId}`);
+      io.emit("simulator:reset-driver", data);
+    });
+
+        // OTP verified — ride start
+    socket.on("ride:otp-verified", async (data) => {
+      console.log(`🔑 OTP verified for ride ${data.rideId}`);
+      io.emit("ride:started", data);
+    });
+
     // Ride complete
     socket.on("ride:complete", (data) => {
       const driver = fakeDrivers.find((d) => d.id === data.driverId);

@@ -12,6 +12,7 @@ const TrackRide = () => {
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [driverStatus, setDriverStatus] = useState("searching");
+  const [otp, setOtp] = useState(null);
 
   const initDoneRef = useRef(false);
   const completedRef = useRef(false);
@@ -19,7 +20,7 @@ const TrackRide = () => {
   const { connectSocket, disconnectSocket, drivers, assignedDriver, driverReached, socket } =
     useSocketStore();
 
-  // Socket connect — sirf ek baar
+  // Socket connect
   useEffect(() => {
     connectSocket();
     return () => {
@@ -27,7 +28,7 @@ const TrackRide = () => {
     };
   }, []);
 
-  // Ride details fetch karo — sirf ek baar
+  // Ride details fetch karo
   useEffect(() => {
     const fetchRide = async () => {
       try {
@@ -50,22 +51,20 @@ const TrackRide = () => {
 
     initDoneRef.current = true;
 
-    // Pehle drivers spawn karo
     socket.emit("ride:respawn-drivers", { pickup: ride.pickup });
 
-    // 3 second baad ride book karo (drivers pehle settle ho jayein)
-   socket.emit("ride:book", {
-  rideId: ride._id,
-  pickup: ride.pickup,
-  destination: ride.destination,
-  vehicleType: ride.vehicleType,
-  distance: ride.distance,
-  fare: ride.totalFare,
-});
+    socket.emit("ride:book", {
+      rideId: ride._id,
+      pickup: ride.pickup,
+      destination: ride.destination,
+      vehicleType: ride.vehicleType,
+      distance: ride.distance,
+      fare: ride.totalFare,
+    });
   }, [ride, socket]);
 
-  // Driver assigned hone pe status update
- useEffect(() => {
+  // Driver ACCEPT kare tab status update
+  useEffect(() => {
     if (!socket) return;
 
     socket.on("ride:accepted", (data) => {
@@ -79,25 +78,51 @@ const TrackRide = () => {
       socket.off("ride:accepted");
     };
   }, [socket, id]);
-  
-  // Driver reached hone pe status update — sirf ek baar
+
+  // Driver reached pickup — OTP generate karo
   useEffect(() => {
     if (driverReached && !completedRef.current) {
       completedRef.current = true;
       setDriverStatus("arrived");
-      toast.success("Driver arrived! 🚗");
 
-      setTimeout(() => {
-        setDriverStatus("started");
-        toast("Ride started! 🛣️", { icon: "🚀" });
+      const generateOtp = async () => {
+        try {
+          const { data } = await api.put(`/api/ride/${id}/generate-otp`);
+          setOtp(data.otp);
+          toast.success("Driver pahunch gaya! OTP driver ko batao.");
+        } catch (error) {
+          console.error("OTP generate error:", error);
+        }
+      };
 
-        setTimeout(() => {
-          setDriverStatus("completed");
-          toast.success("Ride completed! 🎉");
-        }, 5000);
-      }, 3000);
+      generateOtp();
     }
   }, [driverReached]);
+
+  // Ride started (OTP verified) listen karo
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("ride:started", (data) => {
+      if (data.rideId === id) {
+        setDriverStatus("started");
+        setOtp(null);
+        toast("Ride started! 🛣️", { icon: "🚀" });
+      }
+    });
+
+    socket.on("ride:completed", (data) => {
+      if (data.rideId === id) {
+        setDriverStatus("completed");
+        toast.success("Ride completed! 🎉");
+      }
+    });
+
+    return () => {
+      socket.off("ride:started");
+      socket.off("ride:completed");
+    };
+  }, [socket, id]);
 
   // ETA calculate
   const getEta = () => {
@@ -117,7 +142,7 @@ const TrackRide = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <p className="text-white text-xl">Loading ride details...</p>
+        <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -167,7 +192,7 @@ const TrackRide = () => {
                   }
                 />
                 <StatusStep
-                  label="Driver Arrived"
+                  label="Driver Arrived — Share OTP"
                   active={driverStatus === "arrived"}
                   completed={driverStatus === "started" || driverStatus === "completed"}
                 />
@@ -182,6 +207,18 @@ const TrackRide = () => {
                   completed={driverStatus === "completed"}
                 />
               </div>
+
+              {/* OTP Display */}
+              {otp && driverStatus === "arrived" && (
+                <div className="mt-4 p-4 bg-blue-500/20 border border-blue-400/30 rounded-xl text-center">
+                  <p className="text-gray-300 text-sm mb-2">
+                    Driver ko ye OTP batao:
+                  </p>
+                  <p className="text-5xl font-bold text-blue-400 tracking-widest">
+                    {otp}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Driver Card */}
@@ -208,6 +245,11 @@ const TrackRide = () => {
               <h2 className="text-white text-lg font-semibold mb-3">Ride Details</h2>
               <div className="space-y-2 text-sm text-gray-300">
                 <p><span className="text-white font-medium">📍 Pickup:</span> {ride.pickup.name}</p>
+                {ride.stops && ride.stops.length > 0 &&
+                  ride.stops.map((stop, idx) => (
+                    <p key={idx}><span className="text-white font-medium">🔵 Stop {idx + 1}:</span> {stop.name}</p>
+                  ))
+                }
                 <p><span className="text-white font-medium">🏁 Destination:</span> {ride.destination.name}</p>
                 <p><span className="text-white font-medium">📏 Distance:</span> {ride.distance} km</p>
                 <p><span className="text-white font-medium">🚗 Vehicle:</span> {ride.vehicleType}</p>
@@ -239,6 +281,7 @@ const TrackRide = () => {
             <MapView
               pickup={ride.pickup}
               destination={ride.destination}
+              stops={ride.stops || []}
               drivers={assignedDriver ? drivers.filter((d) => d.id === assignedDriver.id) : drivers}
               isTracking={true}
             />
