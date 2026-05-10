@@ -13,6 +13,9 @@ const TrackRide = () => {
   const [loading, setLoading] = useState(true);
   const [driverStatus, setDriverStatus] = useState("searching");
   const [otp, setOtp] = useState(null);
+  const [showRating, setShowRating] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   const initDoneRef = useRef(false);
   const completedRef = useRef(false);
@@ -20,7 +23,6 @@ const TrackRide = () => {
   const { connectSocket, disconnectSocket, drivers, assignedDriver, driverReached, socket } =
     useSocketStore();
 
-  // Socket connect
   useEffect(() => {
     connectSocket();
     return () => {
@@ -28,7 +30,6 @@ const TrackRide = () => {
     };
   }, []);
 
-  // Ride details fetch karo
   useEffect(() => {
     const fetchRide = async () => {
       try {
@@ -45,7 +46,6 @@ const TrackRide = () => {
     fetchRide();
   }, [id]);
 
-  // Drivers spawn + ride book — SIRF EK BAAR
   useEffect(() => {
     if (!ride || !socket || initDoneRef.current) return;
 
@@ -63,7 +63,6 @@ const TrackRide = () => {
     });
   }, [ride, socket]);
 
-  // Driver ACCEPT kare tab status update
   useEffect(() => {
     if (!socket) return;
 
@@ -79,7 +78,6 @@ const TrackRide = () => {
     };
   }, [socket, id]);
 
-  // Driver reached pickup — OTP generate karo
   useEffect(() => {
     if (driverReached && !completedRef.current) {
       completedRef.current = true;
@@ -99,7 +97,6 @@ const TrackRide = () => {
     }
   }, [driverReached]);
 
-  // Ride started (OTP verified) listen karo
   useEffect(() => {
     if (!socket) return;
 
@@ -114,6 +111,7 @@ const TrackRide = () => {
     socket.on("ride:completed", (data) => {
       if (data.rideId === id) {
         setDriverStatus("completed");
+        setShowRating(true);
         toast.success("Ride completed! 🎉");
       }
     });
@@ -124,7 +122,23 @@ const TrackRide = () => {
     };
   }, [socket, id]);
 
-  // ETA calculate
+  const handleSubmitRating = async () => {
+    if (selectedRating === 0) {
+      toast.error("Rating select karo");
+      return;
+    }
+
+    try {
+      await api.post(`/api/ride/${id}/rate`, { rating: selectedRating });
+      toast.success("Rating submitted! Thank you 🙏");
+      setRatingSubmitted(true);
+      setShowRating(false);
+    } catch (error) {
+      toast.error("Rating submit nahi hui");
+      console.error(error);
+    }
+  };
+
   const getEta = () => {
     if (!assignedDriver || !ride) return null;
 
@@ -163,9 +177,7 @@ const TrackRide = () => {
         <h1 className="text-3xl font-bold text-white mb-6">Track Your Ride</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Side */}
           <div className="space-y-4">
-            {/* Status Card */}
             <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
               <h2 className="text-white text-lg font-semibold mb-4">
                 Ride Status
@@ -208,7 +220,6 @@ const TrackRide = () => {
                 />
               </div>
 
-              {/* OTP Display */}
               {otp && driverStatus === "arrived" && (
                 <div className="mt-4 p-4 bg-blue-500/20 border border-blue-400/30 rounded-xl text-center">
                   <p className="text-gray-300 text-sm mb-2">
@@ -221,7 +232,57 @@ const TrackRide = () => {
               )}
             </div>
 
-            {/* Driver Card */}
+            {/* Rating Modal */}
+            {showRating && !ratingSubmitted && (
+              <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                <h2 className="text-white text-lg font-semibold mb-3 text-center">
+                  Rate Your Ride ⭐
+                </h2>
+                <p className="text-gray-400 text-sm text-center mb-4">
+                  Driver ko kitne stars doge?
+                </p>
+
+                <div className="flex justify-center gap-3 mb-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setSelectedRating(star)}
+                      className={`text-4xl transition transform hover:scale-110 ${
+                        star <= selectedRating
+                          ? "text-yellow-400"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-center text-white text-lg mb-4">
+                  {selectedRating > 0 && `${selectedRating} / 5`}
+                </p>
+
+                <button
+                  onClick={handleSubmitRating}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition"
+                >
+                  Submit Rating
+                </button>
+              </div>
+            )}
+
+            {/* Rating Submitted Thank You */}
+            {ratingSubmitted && (
+              <div className="bg-green-500/10 border border-green-400/30 rounded-2xl p-5 text-center">
+                <p className="text-green-400 text-lg font-semibold">
+                  🙏 Thank you for rating!
+                </p>
+                <p className="text-gray-400 text-sm mt-1">
+                  You gave {selectedRating} ⭐
+                </p>
+              </div>
+            )}
+
             {assignedDriver && (
               <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
                 <h2 className="text-white text-lg font-semibold mb-3">Your Driver</h2>
@@ -240,7 +301,6 @@ const TrackRide = () => {
               </div>
             )}
 
-            {/* Ride Details */}
             <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
               <h2 className="text-white text-lg font-semibold mb-3">Ride Details</h2>
               <div className="space-y-2 text-sm text-gray-300">
@@ -257,8 +317,7 @@ const TrackRide = () => {
               </div>
             </div>
 
-            {/* Actions */}
-            {driverStatus === "completed" && (
+            {driverStatus === "completed" && ratingSubmitted && (
               <div className="flex gap-3">
                 <button
                   onClick={() => navigate("/book")}
@@ -276,7 +335,6 @@ const TrackRide = () => {
             )}
           </div>
 
-          {/* Right Side — Map */}
           <div className="bg-white/10 border border-white/10 rounded-2xl p-4 backdrop-blur-md">
             <MapView
               pickup={ride.pickup}

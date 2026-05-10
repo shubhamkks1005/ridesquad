@@ -12,7 +12,6 @@ const DriverDashboard = () => {
   const [currentRide, setCurrentRide] = useState(null);
   const [otpInput, setOtpInput] = useState("");
   const [ridePhase, setRidePhase] = useState("idle");
-  // idle -> accepted -> at-pickup -> ongoing -> completed
 
   const [formData, setFormData] = useState({
     vehicleType: "bike",
@@ -30,27 +29,24 @@ const DriverDashboard = () => {
   useEffect(() => {
     if (!socket) return;
 
-    // Incoming ride request
     socket.on("ride:request-incoming", (data) => {
       console.log("🚗 Incoming ride request:", data);
       setIncomingRide(data);
       toast("🚗 New ride request!", { icon: "📍" });
     });
 
-    // Ride accepted confirm
     socket.on("ride:accepted", (data) => {
-      setRidePhase("accepted");
+      toast.success("Ride accepted!");
       setCurrentRide(data);
+      setRidePhase("accepted");
       setIncomingRide(null);
     });
 
-    // Ride rejected
     socket.on("ride:rejected", () => {
       toast("Ride rejected", { icon: "❌" });
       setIncomingRide(null);
     });
 
-    // Driver reached pickup
     socket.on("driver:reached", (data) => {
       if (currentRide && data.rideId === currentRide.rideId) {
         setRidePhase("at-pickup");
@@ -58,7 +54,6 @@ const DriverDashboard = () => {
       }
     });
 
-    // Ride started (OTP verified)
     socket.on("ride:started", (data) => {
       if (currentRide && data.rideId === currentRide.rideId) {
         setRidePhase("ongoing");
@@ -66,14 +61,12 @@ const DriverDashboard = () => {
       }
     });
 
-    // Driver reached destination
     socket.on("driver:reached-destination", (data) => {
       if (currentRide && data.rideId === currentRide.rideId) {
         toast.success("Destination pe pahunch gaye!");
       }
     });
 
-    // Ride completed
     socket.on("ride:completed", (data) => {
       setRidePhase("idle");
       setCurrentRide(null);
@@ -94,7 +87,6 @@ const DriverDashboard = () => {
     };
   }, [socket, currentRide]);
 
-  // Fetch driver profile
   const fetchProfile = async () => {
     try {
       const { data } = await api.get("/api/driver/profile");
@@ -106,7 +98,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Fetch driver rides
   const fetchRides = async () => {
     try {
       const { data } = await api.get("/api/driver/rides");
@@ -121,7 +112,6 @@ const DriverDashboard = () => {
     fetchRides();
   }, []);
 
-  // Driver register
   const handleRegister = async (e) => {
     e.preventDefault();
 
@@ -142,7 +132,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Online/Offline toggle
   const handleToggle = async () => {
     try {
       const { data } = await api.put("/api/driver/availability");
@@ -153,7 +142,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Accept ride
   const handleAccept = async () => {
     if (!socket || !incomingRide || !driver) return;
 
@@ -172,7 +160,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Reject ride
   const handleReject = () => {
     if (!socket || !incomingRide) return;
 
@@ -182,7 +169,6 @@ const DriverDashboard = () => {
     });
   };
 
-  // Verify OTP
   const handleVerifyOtp = async () => {
     if (!currentRide || !otpInput) {
       toast.error("OTP daalo");
@@ -194,7 +180,6 @@ const DriverDashboard = () => {
         otp: otpInput,
       });
 
-      // Ride started — socket se batao
       socket.emit("ride:otp-verified", {
         rideId: currentRide.rideId,
         driverId: currentRide.driverId,
@@ -206,7 +191,6 @@ const DriverDashboard = () => {
     }
   };
 
-  // Complete ride
   const handleCompleteRide = async () => {
     if (!currentRide) return;
 
@@ -231,7 +215,6 @@ const DriverDashboard = () => {
     );
   }
 
-  // Register form
   if (!driver) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 flex items-center justify-center px-4">
@@ -286,7 +269,6 @@ const DriverDashboard = () => {
     );
   }
 
-  // Driver Dashboard
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 px-4 py-8">
       <div className="max-w-6xl mx-auto">
@@ -347,7 +329,6 @@ const DriverDashboard = () => {
               </p>
             </div>
 
-            {/* OTP Input — At Pickup */}
             {ridePhase === "at-pickup" && (
               <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl p-4 mb-4">
                 <p className="text-gray-300 text-sm mb-3">
@@ -372,7 +353,6 @@ const DriverDashboard = () => {
               </div>
             )}
 
-            {/* Complete Ride Button — Ongoing */}
             {ridePhase === "ongoing" && (
               <button
                 onClick={handleCompleteRide}
