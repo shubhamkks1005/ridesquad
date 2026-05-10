@@ -1,32 +1,67 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import api from "../utils/axios";
+import { useSocketStore } from "../store/socketStore";
 
 const DriverDashboard = () => {
   const [driver, setDriver] = useState(null);
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
+  const [incomingRide, setIncomingRide] = useState(null);
 
   const [formData, setFormData] = useState({
     vehicleType: "bike",
     vehicleNumber: "",
   });
 
-  // Driver profile fetch karo
+  const { connectSocket, socket } = useSocketStore();
+
+  // Socket connect + events
+  useEffect(() => {
+    connectSocket();
+  }, []);
+
+  // Listen for incoming ride requests
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("ride:request-incoming", (data) => {
+      console.log("🚗 Incoming ride request:", data);
+      setIncomingRide(data);
+      toast("🚗 New ride request!", { icon: "📍" });
+    });
+
+    socket.on("ride:accepted", (data) => {
+      toast.success("Ride accepted!");
+      setIncomingRide(null);
+    });
+
+    socket.on("ride:rejected", () => {
+      toast("Ride rejected", { icon: "❌" });
+      setIncomingRide(null);
+    });
+
+    return () => {
+      socket.off("ride:request-incoming");
+      socket.off("ride:accepted");
+      socket.off("ride:rejected");
+    };
+  }, [socket]);
+
+  // Driver profile fetch
   const fetchProfile = async () => {
     try {
       const { data } = await api.get("/api/driver/profile");
       setDriver(data.driver);
     } catch (error) {
-      // Profile nahi mila — register form dikhao
       setDriver(null);
     } finally {
       setLoading(false);
     }
   };
 
-  // Driver rides fetch karo
+  // Driver rides fetch
   const fetchRides = async () => {
     try {
       const { data } = await api.get("/api/driver/rides");
@@ -41,7 +76,7 @@ const DriverDashboard = () => {
     fetchRides();
   }, []);
 
-  // Driver register karo
+  // Driver register
   const handleRegister = async (e) => {
     e.preventDefault();
 
@@ -73,15 +108,35 @@ const DriverDashboard = () => {
     }
   };
 
+  // Accept ride
+  const handleAccept = () => {
+    if (!socket || !incomingRide) return;
+
+    socket.emit("ride:accept", {
+      rideId: incomingRide.rideId,
+      driverId: incomingRide.driverId,
+    });
+  };
+
+  // Reject ride
+  const handleReject = () => {
+    if (!socket || !incomingRide) return;
+
+    socket.emit("ride:reject", {
+      rideId: incomingRide.rideId,
+      driverId: incomingRide.driverId,
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <p className="text-white text-xl">Loading...</p>
+        <div className="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  // Agar driver profile nahi hai — register form dikhao
+  // Agar driver profile nahi hai — register form
   if (!driver) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 flex items-center justify-center px-4">
@@ -156,9 +211,56 @@ const DriverDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-6">
-          Driver Dashboard
-        </h1>
+        <h1 className="text-3xl font-bold text-white mb-6">Driver Dashboard</h1>
+
+        {/* Incoming Ride Request Popup */}
+        {incomingRide && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+            <div className="bg-slate-800 border border-white/20 rounded-2xl p-6 max-w-md w-full animate-pulse-slow">
+              <h2 className="text-2xl font-bold text-white text-center mb-4">
+                🚗 New Ride Request!
+              </h2>
+
+              <div className="space-y-3 text-sm text-gray-300 mb-6">
+                <p>
+                  <span className="text-white font-medium">📍 Pickup:</span>{" "}
+                  {incomingRide.pickup?.name || "N/A"}
+                </p>
+                <p>
+                  <span className="text-white font-medium">🏁 Destination:</span>{" "}
+                  {incomingRide.destination?.name || "N/A"}
+                </p>
+                <p>
+                  <span className="text-white font-medium">📏 Distance:</span>{" "}
+                  {incomingRide.distance || 0} km
+                </p>
+                <p>
+                  <span className="text-white font-medium">💰 Fare:</span>{" "}
+                  ₹{incomingRide.fare || 0}
+                </p>
+                <p>
+                  <span className="text-white font-medium">🚗 Vehicle:</span>{" "}
+                  {incomingRide.vehicleType}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleReject}
+                  className="flex-1 bg-red-500/30 hover:bg-red-500/50 text-red-300 font-semibold py-3 rounded-xl transition"
+                >
+                  ❌ Reject
+                </button>
+                <button
+                  onClick={handleAccept}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl transition"
+                >
+                  ✅ Accept
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -214,7 +316,7 @@ const DriverDashboard = () => {
           <div className="bg-white/10 border border-white/10 rounded-2xl p-5 backdrop-blur-md">
             <p className="text-gray-400 text-sm mb-2">Rating</p>
             <p className="text-white text-2xl font-bold">
-              ⭐ {driver.rating.toFixed(1)}
+              ⭐ {driver.rating?.toFixed(1) || "5.0"}
             </p>
             <p className="text-gray-400 text-sm">out of 5.0</p>
           </div>
@@ -242,10 +344,7 @@ const DriverDashboard = () => {
                 </thead>
                 <tbody>
                   {rides.map((ride) => (
-                    <tr
-                      key={ride._id}
-                      className="border-t border-white/10"
-                    >
+                    <tr key={ride._id} className="border-t border-white/10">
                       <td className="px-4 py-3">{ride.pickup?.name}</td>
                       <td className="px-4 py-3">{ride.destination?.name}</td>
                       <td className="px-4 py-3">{ride.distance} km</td>

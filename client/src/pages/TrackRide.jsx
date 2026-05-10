@@ -54,23 +54,32 @@ const TrackRide = () => {
     socket.emit("ride:respawn-drivers", { pickup: ride.pickup });
 
     // 3 second baad ride book karo (drivers pehle settle ho jayein)
-    setTimeout(() => {
-      socket.emit("ride:book", {
-        rideId: ride._id,
-        pickup: ride.pickup,
-        destination: ride.destination,
-        vehicleType: ride.vehicleType,
-      });
-    }, 3000);
+   socket.emit("ride:book", {
+  rideId: ride._id,
+  pickup: ride.pickup,
+  destination: ride.destination,
+  vehicleType: ride.vehicleType,
+  distance: ride.distance,
+  fare: ride.totalFare,
+});
   }, [ride, socket]);
 
   // Driver assigned hone pe status update
-  useEffect(() => {
-    if (assignedDriver && driverStatus === "searching") {
-      setDriverStatus("arriving");
-    }
-  }, [assignedDriver]);
+ useEffect(() => {
+    if (!socket) return;
 
+    socket.on("ride:accepted", (data) => {
+      if (data.rideId === id) {
+        setDriverStatus("arriving");
+        toast.success("Driver ne ride accept ki! Aa raha hai...");
+      }
+    });
+
+    return () => {
+      socket.off("ride:accepted");
+    };
+  }, [socket, id]);
+  
   // Driver reached hone pe status update — sirf ek baar
   useEffect(() => {
     if (driverReached && !completedRef.current) {

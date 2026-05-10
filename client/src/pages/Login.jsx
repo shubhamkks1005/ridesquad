@@ -39,12 +39,11 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-8 shadow-2xl">
-        <h1 className="text-3xl font-bold text-white text-center mb-2">
-          Login
-        </h1>
-        <p className="text-gray-300 text-center mb-6">
-          Welcome back to RideSquad
-        </p>
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">🚗</div>
+          <h1 className="text-3xl font-bold text-white">Login</h1>
+          <p className="text-gray-300 text-sm mt-1">Welcome back to RideSquad</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -55,7 +54,7 @@ const Login = () => {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-blue-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-blue-400 transition"
               required
             />
           </div>
@@ -68,7 +67,7 @@ const Login = () => {
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-blue-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-blue-400 transition"
               required
             />
           </div>
@@ -82,7 +81,7 @@ const Login = () => {
           </button>
         </form>
 
-        <p className="text-gray-300 text-center mt-6">
+        <p className="text-gray-300 text-center mt-6 text-sm">
           Don&apos;t have an account?{" "}
           <Link to="/register" className="text-blue-400 hover:underline">
             Register

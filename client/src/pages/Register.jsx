@@ -42,12 +42,11 @@ const Register = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 px-4">
       <div className="w-full max-w-md rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-8 shadow-2xl">
-        <h1 className="text-3xl font-bold text-white text-center mb-2">
-          Register
-        </h1>
-        <p className="text-gray-300 text-center mb-6">
-          Create your RideSquad account
-        </p>
+        <div className="text-center mb-6">
+          <div className="text-4xl mb-2">🚗</div>
+          <h1 className="text-3xl font-bold text-white">Register</h1>
+          <p className="text-gray-300 text-sm mt-1">Create your RideSquad account</p>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -58,7 +57,7 @@ const Register = () => {
               placeholder="Enter your name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-purple-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-purple-400 transition"
               required
             />
           </div>
@@ -71,7 +70,7 @@ const Register = () => {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-purple-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-purple-400 transition"
               required
             />
           </div>
@@ -84,7 +83,7 @@ const Register = () => {
               placeholder="Enter your phone number"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-purple-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-purple-400 transition"
               required
             />
           </div>
@@ -97,7 +96,7 @@ const Register = () => {
               placeholder="Create a password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-300 outline-none focus:border-purple-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white placeholder-gray-400 outline-none focus:border-purple-400 transition"
               required
             />
           </div>
@@ -108,17 +107,11 @@ const Register = () => {
               name="role"
               value={formData.role}
               onChange={handleChange}
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white outline-none focus:border-purple-400"
+              className="w-full rounded-lg border border-white/20 bg-white/10 px-4 py-3 text-white outline-none focus:border-purple-400 transition"
             >
-              <option value="user" className="text-black">
-                User
-              </option>
-              <option value="driver" className="text-black">
-                Driver
-              </option>
-              <option value="admin" className="text-black">
-                Admin
-              </option>
+              <option value="user" className="text-black">User</option>
+              <option value="driver" className="text-black">Driver</option>
+              <option value="admin" className="text-black">Admin</option>
             </select>
           </div>
 
@@ -131,7 +124,7 @@ const Register = () => {
           </button>
         </form>
 
-        <p className="text-gray-300 text-center mt-6">
+        <p className="text-gray-300 text-center mt-6 text-sm">
           Already have an account?{" "}
           <Link to="/login" className="text-purple-400 hover:underline">
             Login
